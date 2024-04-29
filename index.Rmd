@@ -1,19 +1,21 @@
 ---
-title: "Self-reported life satisfaction, 2011 to 2022"
+title: "Share of people who say they are happy, 1993 to 2022"
 output: 
   html_document:
     theme: united
 ---
 
-<img src="Our_World_in_Data_logo.png" style='width: 100px; position:absolute; top:0; right:0; padding:10px;'/>
+<img src="Our_World_in_Data_logo.png" style="width: 100px; position:absolute; top:0; right:0; padding:10px;"/>
 
 <link href='https://fonts.googleapis.com/css?family=Playfair Display' rel='stylesheet'>
+
+```{=html}
 <style>
 h1 {
     font-family: Playfair Display, Georgia, Times New Roman, "Liberation Serif", serif;
 }
 </style>
-
+```
 ```{r include = F}
 knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
 
@@ -22,26 +24,30 @@ if(!require(pacman)) install.packages("pacman")
 pacman::p_load(plotly, tidyverse, reactable, here)
 ```
 
-```{r}
+```{r include=FALSE}
 ## Import data
 cantril <- 
   read_csv(here("data/happiness-cantril-ladder.csv")) %>% 
   rename(Country = Entity)
+
+happy <- 
+  read_csv(here("data/share-of-people-who-say-they-are-happy.csv")) %>% 
+  rename(Country = Entity)
 ```
 
-“Please imagine a ladder, with steps numbered from 0 at the bottom to 10 at the top. The top of the ladder represents the best possible life for you and the bottom of the ladder represents the worst possible life for you. On which step of the ladder would you say you personally feel you stand at this time?”
+“Share of people who respond they are "very happy" or "rather happy" to the question "Taking all things together, would you say you are … ?"”
 
-# {.tabset}
+#  {.tabset}
 
 ## 🔢 Table
 
 ```{r}
-cantril %>% 
-  filter(Year %in% c(2011, 2022)) %>% 
-  pivot_wider(names_from = Year, values_from = `Cantril ladder score`, id_cols = Country) %>% 
-  select(Country, `2011`, `2022`) %>% 
-  mutate(`Absolute change` = round(`2022` - `2011`, 3)) %>% 
-  mutate(`Relative change` = (`2022` - `2011`) / `2011`) %>% 
+happy %>% 
+  filter(Year %in% c(1993, 2022)) %>% 
+  pivot_wider(names_from = Year, values_from = `Happiness: Happy (aggregate)`, id_cols = Country) %>% 
+  select(Country, `1993`, `2022`) %>% 
+  mutate(`Absolute change` = round(`2022` - `1993`, 3)) %>% 
+  mutate(`Relative change` = (`2022` - `1993`) / `1993`) %>% 
   reactable(
     columns = list(`Relative change` = colDef(format = colFormat(percent = TRUE, digits = 1))) 
   )
@@ -50,37 +56,49 @@ cantril %>%
 ## 🌎 Map
 
 ```{r}
-cantril %>% 
-  mutate(`Cantril ladder score` = round(`Cantril ladder score`, 2)) %>%
-  plot_geo(width = 940) %>% 
+happy %>% 
+  mutate(`Happiness: Happy (aggregate)` = round(`Happiness: Happy (aggregate)`, 2)) %>%
+  plot_geo(width = 950, height = 500) %>% 
   add_trace(
-    z = ~`Cantril ladder score`,
-    color = ~`Cantril ladder score`,
+    z = ~`Happiness: Happy (aggregate)`,
+    color = ~`Happiness: Happy (aggregate)`,
     locations = ~Code,
     text = ~Country,
-    frame = ~Year, colors = "YlGn"
-  ) %>% 
-  colorbar(title = NULL)
-```
+    frame = ~Year, colors = "YlGn",
+    colorbar = list(title = "% of happy/very happy people")
+    ) %>% 
+  layout(
+    title = "Share of people who say they are happy, 1992-2022",
+    geo = list(
+      projection = list(type = "natural earth"),
+      showframe = FALSE,
+      showcoastlines = TRUE
+      ),
+    margin = list(l = 0, r = 0, t = 40, b = 20)
+  )
 
+
+```
 
 ## 📈 Chart
 
 ```{r}
 # simple line chart of the data, for five countries on different continents (ggplot, piped into ggplotly)
 
-cantril_chart <- 
-  cantril %>% 
-  filter(Country %in% c("Norway", "Australia", "Germany", "Bolivia", "Colombia", "Bhutan")) %>%
-  ggplot(aes(x = Year, y = `Cantril ladder score`, color = Country)) +
+happy_chart <- 
+  happy %>% 
+  filter(Country %in% c("Norway", "Australia", "South Africa", "Argentina", "Egypt", "Japan")) %>%
+  ggplot(aes(x = Year, y = `Happiness: Happy (aggregate)`, color = Country)) +
   geom_line() +
-  scale_y_continuous(limits = c(0, 10)) +
-  labs(x = NULL,
-       y = NULL, 
-       color = NULL) +
+  scale_y_continuous(limits = c(0, 100)) +
+  labs(x = "Year",
+       y = "% of respondents happy or very happy", 
+       color = "Country",
+       title = "Share of people who say they are happy, 1993 to 2022",
+       subtitle = "% of respondents replying very happy/ quite happy") +
   theme_minimal() 
 
-ggplotly(cantril_chart, width = 940)
+ggplotly(happy_chart, width = 950, length = 920)
 ```
 
 ## Advanced (Optional) 📈
@@ -94,32 +112,33 @@ pacman::p_load(crosstalk)
 
 
 # Crosstalk shared data
-shared_cantril <- highlight_key(cantril)
+shared_happy <- highlight_key(happy)
 
-cantril_plotly <- plot_ly(
-  shared_cantril, 
+happy_plotly <- plot_ly(
+  shared_happy, 
   x = ~Year, 
-  y = ~`Cantril ladder score`, 
+  y = ~`Happiness: Happy (aggregate)`, 
   color = ~Country, 
   type = "scatter", 
   mode = "lines+markers"
 ) %>%
-  layout(yaxis = list(range = c(0, 10)))
+  layout(yaxis = list(range = c(0, 100)))
 
 
 country_filter <- filter_select(
   "country_filter", 
   "Select a country to examine", 
-  shared_cantril, 
+  shared_happy, 
   ~Country, 
   multiple = TRUE
 )
 
 bscols(
-  list(country_filter, cantril_plotly)
+  list(country_filter, happy_plotly)
 )
 ```
 
+```{=html}
 <script>
 function filter_default() {
   var default_countries = ["Norway", "Australia", "Germany", "Bolivia", "Colombia", "Bhutan"]; // Set default countries here
@@ -127,13 +146,9 @@ function filter_default() {
 }
 window.onload = filter_default;
 </script>
-
-
-# {.unlisted}
+```
+#  {.unlisted}
 
 Data source: World Happiness Report
 
-[OurWorldInData.org/happiness-and-life-satisfaction](https://ourworldindata.org/grapher/happiness-cantril-ladder) | CC BY
-
-
-
+[OurWorldInData.org/happiness-and-life-satisfaction](https://ourworldindata.org/grapher/happiness-cantril-ladder) \| CC BY
